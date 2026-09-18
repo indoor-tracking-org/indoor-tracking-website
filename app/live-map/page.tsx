@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { AppShell } from '@/components/app-shell';
-import { LiveMap } from '@/components/live-map';
+import dynamic from 'next/dynamic';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -34,6 +34,11 @@ import {
   Square,
 } from 'lucide-react';
 import { toast } from 'sonner';
+
+const LiveMap = dynamic(
+  () => import('@/components/live-map').then((module) => module.LiveMap),
+  { ssr: false, loading: () => <div className="h-full w-full bg-slate-800" /> }
+);
 
 export default function LiveMapPage() {
   const [sites, setSites] = useState<Site[]>([]);

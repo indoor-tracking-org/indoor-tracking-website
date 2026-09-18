@@ -90,12 +90,12 @@ export default function DashboardPage() {
     }, 3000);
 
     // Store interval id for cleanup
-    (window as unknown as { __demoInterval?: ReturnType<typeof setInterval> })._demoInterval = interval;
+    (window as unknown as { __demoInterval?: ReturnType<typeof setInterval> }).__demoInterval = interval;
   }
 
   useEffect(() => {
     return () => {
-      const interval = (window as unknown as { __demoInterval?: ReturnType<typeof setInterval> })._demoInterval;
+      const interval = (window as unknown as { __demoInterval?: ReturnType<typeof setInterval> }).__demoInterval;
       if (interval) clearInterval(interval);
     };
   }, []);

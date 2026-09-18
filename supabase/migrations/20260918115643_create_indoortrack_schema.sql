@@ -88,6 +88,30 @@ to the platform, which stores it and displays devices live on warehouse/site map
 */
 
 -- SITES
+-- USERS (the initial operator workspace is single-tenant; authentication can be added later)
+CREATE TABLE IF NOT EXISTS users (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  email text UNIQUE NOT NULL,
+  name text NOT NULL,
+  role text NOT NULL DEFAULT 'operator',
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "anon_select_users" ON users;
+CREATE POLICY "anon_select_users" ON users FOR SELECT
+  TO anon, authenticated USING (true);
+
+DROP POLICY IF EXISTS "anon_insert_users" ON users;
+CREATE POLICY "anon_insert_users" ON users FOR INSERT
+  TO anon, authenticated WITH CHECK (true);
+
+DROP POLICY IF EXISTS "anon_update_users" ON users;
+CREATE POLICY "anon_update_users" ON users FOR UPDATE
+  TO anon, authenticated USING (true) WITH CHECK (true);
+
+-- SITES
 CREATE TABLE IF NOT EXISTS sites (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name text NOT NULL,

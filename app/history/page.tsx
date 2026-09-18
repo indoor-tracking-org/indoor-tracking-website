@@ -22,9 +22,11 @@ import {
   formatBattery,
 } from '@/lib/format';
 import type { Device, Site, Telemetry } from '@/lib/types';
-import L from 'leaflet';
+import type * as Leaflet from 'leaflet';
 import { Play, Pause, SkipBack, SkipForward, MapPin, Clock } from 'lucide-react';
 import { toast } from 'sonner';
+
+const L = (typeof window !== 'undefined' ? require('leaflet') : null) as typeof import('leaflet');
 
 export default function HistoryPage() {
   const [devices, setDevices] = useState<Device[]>([]);
@@ -40,11 +42,11 @@ export default function HistoryPage() {
   const [isPlaying, setIsPlaying] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<L.Map | null>(null);
-  const tileLayerRef = useRef<L.TileLayer | null>(null);
-  const trackLineRef = useRef<L.Polyline | null>(null);
-  const playbackMarkerRef = useRef<L.Marker | null>(null);
-  const pointMarkersRef = useRef<L.CircleMarker[]>([]);
+  const mapRef = useRef<Leaflet.Map | null>(null);
+  const tileLayerRef = useRef<Leaflet.TileLayer | null>(null);
+  const trackLineRef = useRef<Leaflet.Polyline | null>(null);
+  const playbackMarkerRef = useRef<Leaflet.Marker | null>(null);
+  const pointMarkersRef = useRef<Leaflet.CircleMarker[]>([]);
 
   useEffect(() => {
     async function init() {

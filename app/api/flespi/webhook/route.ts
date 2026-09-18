@@ -11,6 +11,14 @@ function getSupabaseAdmin() {
 interface FlespiMessage {
   'device.id'?: number | string;
   'device.name'?: string;
+  'position.latitude'?: number;
+  'position.longitude'?: number;
+  'position.speed'?: number;
+  'position.direction'?: number;
+  'position.valid'?: boolean;
+  'battery.voltage'?: number;
+  'battery.level'?: number;
+  'device'?: { id?: number | string; name?: string };
   ident?: string;
   timestamp?: number | string;
   position?: {
@@ -28,24 +36,28 @@ interface FlespiMessage {
   [key: string]: unknown;
 }
 
+function value<T>(msg: FlespiMessage, nested: T | undefined, flattenedKey: string): T | undefined {
+  return nested ?? (msg[flattenedKey] as T | undefined);
+}
+
 function normalizeFlespiMessage(msg: FlespiMessage) {
   return {
-    deviceId: msg['device.id'] != null ? String(msg['device.id']) : undefined,
-    deviceName: msg['device.name'],
+    deviceId: msg['device.id'] != null ? String(msg['device.id']) : msg.device?.id != null ? String(msg.device.id) : undefined,
+    deviceName: msg['device.name'] || msg.device?.name,
     ident: msg.ident,
     timestamp: msg.timestamp
       ? typeof msg.timestamp === 'number'
-        ? new Date(msg.timestamp * 1000).toISOString()
+        ? new Date(msg.timestamp < 100000000000 ? msg.timestamp * 1000 : msg.timestamp).toISOString()
         : new Date(msg.timestamp).toISOString()
       : new Date().toISOString(),
-    latitude: msg.position?.latitude,
-    longitude: msg.position?.longitude,
-    speed: msg.position?.speed,
-    direction: msg.position?.direction,
-    positionValid: msg.position?.valid,
-    batteryVoltage: msg.battery?.voltage,
-    batteryLevel: msg.battery?.level,
-    temperature: msg.temperature,
+    latitude: value(msg, msg.position?.latitude, 'position.latitude'),
+    longitude: value(msg, msg.position?.longitude, 'position.longitude'),
+    speed: value(msg, msg.position?.speed, 'position.speed'),
+    direction: value(msg, msg.position?.direction, 'position.direction'),
+    positionValid: value(msg, msg.position?.valid, 'position.valid'),
+    batteryVoltage: value(msg, msg.battery?.voltage, 'battery.voltage'),
+    batteryLevel: value(msg, msg.battery?.level, 'battery.level'),
+    temperature: value(msg, msg.temperature, 'temperature'),
   };
 }
 
@@ -53,6 +65,14 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const messages: FlespiMessage[] = Array.isArray(body) ? body : [body];
+      const configuredToken = process.env.FLESPI_TOKEN;
+      if (configuredToken) {
+        const authorization = req.headers.get('authorization');
+        const suppliedToken = req.headers.get('x-flespi-token');
+        if (authorization !== `FlespiToken ${configuredToken}` && authorization !== `Bearer ${configuredToken}` && suppliedToken !== configuredToken) {
+          return NextResponse.json({ error: 'Unauthorized webhook request' }, { status: 401 });
+        }
+      }
 
     if (messages.length === 0) {
       return NextResponse.json({ error: 'No messages received' }, { status: 400 });
@@ -70,11 +90,21 @@ export async function POST(req: NextRequest) {
       }
 
       // Find device by ident
-      const { data: device, error: deviceErr } = await supabase
+      let { data: device, error: deviceErr } = await supabase
         .from('devices')
         .select('id, site_id, status, last_battery_level')
         .eq('ident', norm.ident)
         .maybeSingle();
+
+      if (!device && norm.deviceId) {
+        const result = await supabase
+          .from('devices')
+          .select('id, site_id, status, last_battery_level')
+          .eq('id', norm.deviceId)
+          .maybeSingle();
+        device = result.data;
+        deviceErr = result.error;
+      }
 
       if (deviceErr || !device) {
         results.push({ ident: norm.ident, status: 'device not found' });

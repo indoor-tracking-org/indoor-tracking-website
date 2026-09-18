@@ -9,13 +9,6 @@ const inter = Inter({ subsets: ['latin'] });
 export const metadata: Metadata = {
   title: 'IndoorTrack — Indoor Asset Tracking Platform',
   description: 'Professional indoor asset and device tracking platform for warehouses, sites, and facilities.',
-  openGraph: {
-    images: [{ url: 'https://bolt.new/static/og_default.png' }],
-  },
-  twitter: {
-    card: 'summary_large_image',
-    images: [{ url: 'https://bolt.new/static/og_default.png' }],
-  },
 };
 
 export default function RootLayout({

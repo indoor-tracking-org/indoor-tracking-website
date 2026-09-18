@@ -172,6 +172,11 @@ export function LiveMap({ site, devices, selectedDeviceId, onSelectDevice, autoF
         map.fitBounds(bounds, { padding: [80, 80], maxZoom: 21 });
       }
     }
+
+    const selectedDevice = devices.find((device) => device.id === selectedDeviceId);
+    if (selectedDevice?.last_lat !== null && selectedDevice?.last_lng !== null && selectedDevice) {
+      map.setView([selectedDevice.last_lat, selectedDevice.last_lng], Math.max(map.getZoom(), 21));
+    }
   }, [devices, selectedDeviceId, onSelectDevice, autoFit, site]);
 
   return <div ref={containerRef} className="h-full w-full" />;
