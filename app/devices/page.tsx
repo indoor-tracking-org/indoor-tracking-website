@@ -43,13 +43,15 @@ import {
 } from '@/components/ui/alert-dialog';
 import { supabase } from '@/lib/supabase';
 import { formatRelativeTime, statusBgColor } from '@/lib/format';
-import type { Device, Site, DeviceStatus } from '@/lib/types';
+import type { Building, Device, Floor, Site, DeviceStatus } from '@/lib/types';
 import { Plus, Search, Pencil, Trash2, Smartphone } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function DevicesPage() {
   const [devices, setDevices] = useState<Device[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
+  const [buildings, setBuildings] = useState<Building[]>([]);
+  const [floors, setFloors] = useState<Floor[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -65,7 +67,9 @@ export default function DevicesPage() {
     site_id: '',
     description: '',
     status: 'offline' as DeviceStatus,
-  last_lat: '',
+    building_id: '',
+    floor_id: '',
+    last_lat: '',
     last_lng: '',
   });
 
@@ -75,12 +79,16 @@ export default function DevicesPage() {
 
   async function fetchData() {
     setLoading(true);
-    const [devRes, siteRes] = await Promise.all([
+    const [devRes, siteRes, buildingRes, floorRes] = await Promise.all([
       supabase.from('devices').select('*, site:sites(*)').order('name'),
       supabase.from('sites').select('*').order('name'),
+      supabase.from('buildings').select('*').order('name'),
+      supabase.from('floors').select('*').order('floor_number'),
     ]);
     setDevices(devRes.data || []);
     setSites(siteRes.data || []);
+    setBuildings(buildingRes.data || []);
+    setFloors(floorRes.data || []);
     setLoading(false);
   }
 
@@ -107,6 +115,8 @@ export default function DevicesPage() {
       site_id: sites[0]?.id || '',
       description: '',
       status: 'offline',
+      building_id: '',
+      floor_id: '',
       last_lat: '',
       last_lng: '',
     });
@@ -122,6 +132,8 @@ export default function DevicesPage() {
       site_id: device.site_id || '',
       description: device.description || '',
       status: device.status,
+      building_id: device.building_id || '',
+      floor_id: device.floor_id || '',
       last_lat: device.last_lat?.toString() || '',
       last_lng: device.last_lng?.toString() || '',
     });
@@ -141,6 +153,8 @@ export default function DevicesPage() {
       site_id: formData.site_id || null,
       description: formData.description || null,
       status: formData.status,
+      building_id: formData.building_id || null,
+      floor_id: formData.floor_id || null,
       last_lat: formData.last_lat ? parseFloat(formData.last_lat) : null,
       last_lng: formData.last_lng ? parseFloat(formData.last_lng) : null,
     };
@@ -358,6 +372,20 @@ export default function DevicesPage() {
                     </SelectItem>
                   ))}
                 </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="building">Building</Label>
+              <Select value={formData.building_id} onValueChange={(value) => setFormData({ ...formData, building_id: value, floor_id: '' })}>
+                <SelectTrigger><SelectValue placeholder="Select a building" /></SelectTrigger>
+                <SelectContent>{buildings.filter((building) => !formData.site_id || building.site_id === formData.site_id).map((building) => <SelectItem key={building.id} value={building.id}>{building.name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="floor">Floor</Label>
+              <Select value={formData.floor_id} onValueChange={(value) => setFormData({ ...formData, floor_id: value })}>
+                <SelectTrigger><SelectValue placeholder="Select a floor" /></SelectTrigger>
+                <SelectContent>{floors.filter((floor) => !formData.building_id || floor.building_id === formData.building_id).map((floor) => <SelectItem key={floor.id} value={floor.id}>{floor.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="grid grid-cols-2 gap-3">

@@ -2,17 +2,16 @@
 
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
-import type { Device, Site } from '@/lib/types';
+import type { Device } from '@/lib/types';
 
 interface LiveMapProps {
-  site: Site | null;
   devices: Device[];
   selectedDeviceId: string | null;
   onSelectDevice: (id: string) => void;
   autoFit?: boolean;
 }
 
-function createDeviceIcon(status: string, isSelected: boolean): L.DivIcon {
+function createDeviceIcon(status: string, name: string, isSelected: boolean): L.DivIcon {
   const colors: Record<string, string> = {
     online: '#10b981',
     offline: '#94a3b8',
@@ -46,6 +45,7 @@ function createDeviceIcon(status: string, isSelected: boolean): L.DivIcon {
           box-shadow: 0 2px 6px rgba(0,0,0,0.3);
           z-index: 1;
         "></div>
+        <div style="position:absolute; top:${ringSize + 2}px; left:50%; transform:translateX(-50%); white-space:nowrap; background:#0f172a; color:white; border-radius:4px; padding:2px 5px; font-size:10px; font-weight:600;">${name}</div>
       </div>
     `,
     iconSize: [ringSize, ringSize],
@@ -53,7 +53,7 @@ function createDeviceIcon(status: string, isSelected: boolean): L.DivIcon {
   });
 }
 
-export function LiveMap({ site, devices, selectedDeviceId, onSelectDevice, autoFit = true }: LiveMapProps) {
+export function LiveMap({ devices, selectedDeviceId, onSelectDevice, autoFit = true }: LiveMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
@@ -63,17 +63,15 @@ export function LiveMap({ site, devices, selectedDeviceId, onSelectDevice, autoF
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
-    const centre: [number, number] = site
-      ? [site.centre_lat, site.centre_lng]
-      : [-26.063253867375856, 27.943127248882575];
+    const centre: [number, number] = [-26.063253867375856, 27.943127248882575];
 
     const map = L.map(containerRef.current, {
       center: centre,
-      zoom: 20,
-      minZoom: 17,
-      maxZoom: 23,
+      zoom: 13,
+      minZoom: 2,
+      maxZoom: 21,
       zoomControl: true,
-      attributionControl: false,
+      attributionControl: true,
     });
 
     mapRef.current = map;
@@ -89,7 +87,7 @@ export function LiveMap({ site, devices, selectedDeviceId, onSelectDevice, autoF
     };
   }, []);
 
-  // Update tile layer when site changes
+  // Always use a normal geographic basemap. Indoor floor plans belong to Sites.
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -100,22 +98,13 @@ export function LiveMap({ site, devices, selectedDeviceId, onSelectDevice, autoF
       tileLayerRef.current = null;
     }
 
-    if (site) {
-      const tileUrl = site.tile_url;
-      const tileLayer = L.tileLayer(tileUrl, {
-        minZoom: 17,
-        maxZoom: 23,
-        maxNativeZoom: 22,
-        tileSize: 256,
-        detectRetina: true,
-      });
-      tileLayer.addTo(map);
-      tileLayerRef.current = tileLayer;
-
-      // Pan to site centre
-      map.setView([site.centre_lat, site.centre_lng], 20);
-    }
-  }, [site]);
+    const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors',
+    });
+    tileLayer.addTo(map);
+    tileLayerRef.current = tileLayer;
+  }, []);
 
   // Update device markers
   useEffect(() => {
@@ -142,7 +131,7 @@ export function LiveMap({ site, devices, selectedDeviceId, onSelectDevice, autoF
 
       const latlng: [number, number] = [device.last_lat, device.last_lng];
       const isSelected = device.id === selectedDeviceId;
-      const icon = createDeviceIcon(device.status, isSelected);
+      const icon = createDeviceIcon(device.status, device.name, isSelected);
 
       const existing = markersRef.current.get(device.id);
       if (existing) {
@@ -163,8 +152,8 @@ export function LiveMap({ site, devices, selectedDeviceId, onSelectDevice, autoF
     // Auto-fit to show all markers if requested
     if (autoFit && devices.length > 0) {
       const validDevices = devices.filter((d) => d.last_lat !== null && d.last_lng !== null);
-      if (validDevices.length === 1 && site) {
-        map.setView([site.centre_lat, site.centre_lng], 20);
+      if (validDevices.length === 1) {
+        map.setView([validDevices[0].last_lat!, validDevices[0].last_lng!], 16);
       } else if (validDevices.length > 1) {
         const bounds = L.latLngBounds(
           validDevices.map((d) => [d.last_lat!, d.last_lng!])
@@ -177,7 +166,7 @@ export function LiveMap({ site, devices, selectedDeviceId, onSelectDevice, autoF
     if (selectedDevice?.last_lat !== null && selectedDevice?.last_lng !== null && selectedDevice) {
       map.setView([selectedDevice.last_lat, selectedDevice.last_lng], Math.max(map.getZoom(), 21));
     }
-  }, [devices, selectedDeviceId, onSelectDevice, autoFit, site]);
+  }, [devices, selectedDeviceId, onSelectDevice, autoFit]);
 
   return <div ref={containerRef} className="h-full w-full" />;
 }

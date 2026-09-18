@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AppShell } from '@/components/app-shell';
 import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
+import { supabase } from '@/lib/supabase';
 import { Bell, Database, KeyRound, Map, Save, Server } from 'lucide-react';
 
 const defaultTileUrl = 'https://wialon-map-overlays.vercel.app/tiles/{slug}/{z}/{x}/{y}.png';
@@ -17,8 +18,26 @@ export default function SettingsPage() {
   const [tileUrl, setTileUrl] = useState(defaultTileUrl);
   const [refreshSeconds, setRefreshSeconds] = useState('3');
 
-  function saveSettings() {
-    toast.success('Map and application preferences saved for this session');
+  useEffect(() => {
+    async function loadSettings() {
+      const { data } = await supabase.from('settings').select('key, value').in('key', ['map', 'application']);
+      (data || []).forEach((setting) => {
+        const value = setting.value as { tileUrl?: string; refreshSeconds?: number };
+        if (setting.key === 'map' && value.tileUrl) setTileUrl(value.tileUrl);
+        if (setting.key === 'application' && value.refreshSeconds) setRefreshSeconds(String(value.refreshSeconds));
+      });
+    }
+    loadSettings();
+  }, []);
+
+  async function saveSettings() {
+    const results = await Promise.all([
+      supabase.from('settings').upsert({ key: 'map', value: { tileUrl } }, { onConflict: 'key' }),
+      supabase.from('settings').upsert({ key: 'application', value: { refreshSeconds: Number(refreshSeconds) } }, { onConflict: 'key' }),
+    ]);
+    const error = results.find((result) => result.error)?.error;
+    if (error) { toast.error(`Could not save settings: ${error.message}`); return; }
+    toast.success('Preferences saved');
   }
 
   return (

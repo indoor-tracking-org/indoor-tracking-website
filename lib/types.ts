@@ -21,6 +21,36 @@ export interface Site {
   tile_url: string;
   description: string | null;
   created_at: string;
+  buildings?: Building[];
+}
+
+export interface Building {
+  id: string;
+  site_id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+  floors?: Floor[];
+}
+
+export interface Floor {
+  id: string;
+  building_id: string;
+  name: string;
+  floor_number: number;
+  image_url: string | null;
+  image_width: number | null;
+  image_height: number | null;
+  calibration_points: CalibrationPoint[];
+  created_at: string;
+}
+
+export interface CalibrationPoint {
+  image_x: number;
+  image_y: number;
+  latitude: number;
+  longitude: number;
+  label?: string;
 }
 
 export interface Device {
@@ -41,6 +71,10 @@ export interface Device {
   last_temperature: number | null;
   created_at: string;
   site?: Site | null;
+  building_id: string | null;
+  floor_id: string | null;
+  building?: Building | null;
+  floor?: Floor | null;
 }
 
 export interface Telemetry {

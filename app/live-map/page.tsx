@@ -29,9 +29,9 @@ import {
   Navigation,
   Gauge,
   MapPin,
-  Clock,
   Play,
   Square,
+  Filter,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -43,7 +43,8 @@ const LiveMap = dynamic(
 export default function LiveMapPage() {
   const [sites, setSites] = useState<Site[]>([]);
   const [devices, setDevices] = useState<Device[]>([]);
-  const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
+  const [selectedSiteId, setSelectedSiteId] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
   const [demoActive, setDemoActive] = useState(false);
@@ -57,9 +58,6 @@ export default function LiveMapPage() {
       ]);
       setSites(siteRes.data || []);
       setDevices(devRes.data || []);
-      if (siteRes.data && siteRes.data.length > 0) {
-        setSelectedSiteId(siteRes.data[0].id);
-      }
       setLoading(false);
     }
     init();
@@ -67,7 +65,6 @@ export default function LiveMapPage() {
 
   // Poll for device updates
   useEffect(() => {
-    if (!demoActive) return;
     const interval = setInterval(async () => {
       const { data } = await supabase
         .from('devices')
@@ -76,13 +73,13 @@ export default function LiveMapPage() {
       if (data) setDevices(data);
     }, 3000);
     return () => clearInterval(interval);
-  }, [demoActive]);
+  }, []);
 
-  const selectedSite = sites.find((s) => s.id === selectedSiteId) || null;
   const selectedDevice = devices.find((d) => d.id === selectedDeviceId) || null;
 
   const filteredDevices = devices.filter((d) => {
-    if (selectedSiteId && d.site_id !== selectedSiteId) return false;
+    if (selectedSiteId !== 'all' && d.site_id !== selectedSiteId) return false;
+    if (statusFilter !== 'all' && d.status !== statusFilter) return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       return (
@@ -134,7 +131,6 @@ export default function LiveMapPage() {
         {/* Map area */}
         <div className="relative flex-1">
           <LiveMap
-            site={selectedSite}
             devices={filteredDevices}
             selectedDeviceId={selectedDeviceId}
             onSelectDevice={handleSelectDevice}
@@ -144,11 +140,7 @@ export default function LiveMapPage() {
           <div className="pointer-events-none absolute left-4 top-4 right-4 z-[1000] flex flex-wrap items-center justify-between gap-2">
             <div className="pointer-events-auto flex items-center gap-2 rounded-lg bg-white/95 px-3 py-2 shadow-lg backdrop-blur">
               <span className="text-sm font-semibold text-slate-700">Live Map</span>
-              {selectedSite && (
-                <Badge variant="outline" className="border-slate-200 text-slate-600">
-                  {selectedSite.name}
-                </Badge>
-              )}
+              <Badge variant="outline" className="border-slate-200 text-slate-600">Geographic GPS</Badge>
             </div>
             <div className="pointer-events-auto flex items-center gap-2">
               <Button
@@ -175,24 +167,17 @@ export default function LiveMapPage() {
 
         {/* Right sidebar */}
         <div className="flex w-80 flex-col border-l border-slate-200 bg-white xl:w-96">
-          {/* Site selector */}
+          {/* Geographic filters */}
           <div className="border-b border-slate-200 p-4">
-            <label className="mb-1.5 block text-xs font-medium text-slate-500">Site</label>
-            <div className="flex flex-wrap gap-1.5">
-              {sites.map((site) => (
-                <button
-                  key={site.id}
-                  onClick={() => setSelectedSiteId(site.id)}
-                  className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                    selectedSiteId === site.id
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  {site.name}
-                </button>
-              ))}
-            </div>
+            <label className="mb-1.5 block text-xs font-medium text-slate-500">Site filter</label>
+            <select value={selectedSiteId} onChange={(event) => setSelectedSiteId(event.target.value)} className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700">
+              <option value="all">All sites</option>
+              {sites.map((site) => <option key={site.id} value={site.id}>{site.name}</option>)}
+            </select>
+            <label className="mb-1.5 mt-3 flex items-center gap-1.5 text-xs font-medium text-slate-500"><Filter className="h-3.5 w-3.5" />Device status</label>
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700">
+              <option value="all">All statuses</option><option value="online">Online</option><option value="offline">Offline</option><option value="moving">Moving</option><option value="stationary">Stationary</option><option value="alert">Alert</option>
+            </select>
           </div>
 
           {/* Search */}
